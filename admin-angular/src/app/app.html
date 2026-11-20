@@ -1,0 +1,259 @@
+@if (!authenticated()) {
+  <main class="login-layout">
+    <div class="login-decoration decoration-one"></div>
+    <div class="login-decoration decoration-two"></div>
+    <section class="login-card">
+      <a class="brand" href="http://localhost:5173/">
+        <span class="brand-mark">SJ</span>
+        <span>SOY <strong>JEANCUY</strong></span>
+      </a>
+      <div class="eyebrow"><span class="pulse"></span> ÁREA DE ADMINISTRACIÓN</div>
+      <h1>Tu espacio,<br /><span>bajo control.</span></h1>
+      <p class="login-copy">Administra tus proyectos, documentos y perfil desde un solo lugar.</p>
+      <form (ngSubmit)="login()">
+        <label>Correo electrónico
+          <input type="email" name="email" [(ngModel)]="email" autocomplete="username" required placeholder="admin@soyjeancuy.com" />
+        </label>
+        <label>Contraseña
+          <input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required placeholder="Tu contraseña" />
+        </label>
+        @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+        <button class="button button-primary login-submit" type="submit" [disabled]="busy()">
+          {{ busy() ? 'Ingresando…' : 'Ingresar al panel' }} <span aria-hidden="true">→</span>
+        </button>
+      </form>
+      <a class="back-link" href="http://localhost:5173/">← Volver al sitio público</a>
+    </section>
+  </main>
+} @else {
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <a class="brand" href="http://localhost:5173/">
+        <span class="brand-mark">SJ</span>
+        <span>SOY <strong>JEANCUY</strong></span>
+      </a>
+      <p class="sidebar-label">ESPACIO DE TRABAJO</p>
+      <nav class="side-nav" aria-label="Secciones del administrador">
+        @for (tab of tabs; track tab.id) {
+          <button type="button" class="side-item" [class.active]="activeTab() === tab.id" (click)="openTab(tab.id)">
+            <span class="nav-icon" aria-hidden="true">{{ tab.icon }}</span>
+            <span>{{ tab.label }}</span>
+            @if (tab.id === 'trash' && stats().trash > 0) { <small>{{ stats().trash }}</small> }
+          </button>
+        }
+      </nav>
+      <div class="sidebar-bottom">
+        <a class="side-item" href="http://localhost:5173/"><span class="nav-icon">↗</span> Ver sitio público</a>
+        <button type="button" class="side-item" (click)="logout()"><span class="nav-icon">⇥</span> Cerrar sesión</button>
+        <div class="sidebar-user">
+          <span class="user-avatar">SJ</span>
+          <span><strong>Administrador</strong><small>SOY JEANCUY</small></span>
+          <span class="verified" aria-label="Sesión autenticada">✓</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <div>
+          <p class="eyebrow">PANEL DE CONTROL <span>/</span> {{ activeTab() }}</p>
+          <h1>
+            @switch (activeTab()) {
+              @case ('dashboard') { Tu espacio, tus reglas. }
+              @case ('files') { Archivos }
+              @case ('projects') { Proyectos }
+              @case ('credentials') { Diplomas }
+              @case ('profile') { Mi perfil }
+              @case ('trash') { Papelera }
+            }
+          </h1>
+        </div>
+        <a class="button button-outline" href="http://localhost:5173/" target="_blank" rel="noreferrer">Vista pública <span>↗</span></a>
+      </header>
+
+      @if (notice()) {
+        <div class="notice" [class.notice-error]="error()" role="status">
+          <span>{{ error() ? '!' : '✓' }}</span>{{ notice() }}
+          <button type="button" aria-label="Cerrar aviso" (click)="notice.set(''); error.set('')">×</button>
+        </div>
+      }
+
+      @switch (activeTab()) {
+        @case ('dashboard') {
+          <section class="page-intro">
+            <p>Un resumen de lo que sucede en tu repositorio personal.</p>
+            <span class="live-pill"><i></i> Sitio conectado</span>
+          </section>
+          <div class="stats-grid">
+            <article class="stat-card"><span class="stat-icon blue">▤</span><span>Archivos</span><strong>{{ stats().files }}</strong><small>En tu repositorio</small></article>
+            <article class="stat-card"><span class="stat-icon cyan">▱</span><span>Carpetas</span><strong>{{ stats().folders }}</strong><small>Contenido organizado</small></article>
+            <article class="stat-card"><span class="stat-icon indigo">◇</span><span>Proyectos</span><strong>{{ stats().projects }}</strong><small>Ideas y experiencias</small></article>
+            <article class="stat-card"><span class="stat-icon sky">✦</span><span>Diplomas</span><strong>{{ stats().credentials }}</strong><small>Formación y logros</small></article>
+          </div>
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-heading"><div><h2>Accesos rápidos</h2><p>Continúa con lo que estabas haciendo</p></div><span class="heading-mark">✦</span></div>
+              <div class="quick-grid">
+                <button type="button" (click)="openCreate('folder')"><span>＋</span>Crear carpeta</button>
+                <button type="button" (click)="openTab('files')"><span>↑</span>Subir archivos</button>
+                <button type="button" (click)="openCreate('project')"><span>◇</span>Nuevo proyecto</button>
+                <button type="button" (click)="openCreate('credential')"><span>✦</span>Añadir diploma</button>
+                <button type="button" (click)="openTab('profile')"><span>◎</span>Editar perfil</button>
+                <button type="button" (click)="openTab('trash')"><span>⌫</span>Abrir papelera</button>
+              </div>
+            </section>
+            <section class="panel activity-panel">
+              <div class="panel-heading"><div><h2>Actividad reciente</h2><p>Últimos cambios en tu espacio</p></div><span class="heading-mark">◷</span></div>
+              @for (item of activity().slice(0, 7); track $index) {
+                <div class="activity-row"><i></i><div><strong>{{ item.action }}</strong><small>{{ item.details || item.entity_type }} · {{ item.created_at | date:'short' }}</small></div></div>
+              } @empty {
+                <div class="empty-state">Todavía no hay actividad registrada.</div>
+              }
+            </section>
+          </div>
+          <section class="publish-note"><span>↗</span><div><strong>Actualizaciones en tiempo real</strong><p>Los cambios publicados aquí se reflejan automáticamente en el sitio público.</p></div></section>
+        }
+
+        @case ('files') {
+          <section class="toolbar">
+            <label class="searchbox"><span>⌕</span><input [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Buscar archivos..." /></label>
+            <button type="button" class="button button-outline" (click)="openCreate('folder')">＋ Nueva carpeta</button>
+          </section>
+          <form class="upload-panel" (ngSubmit)="uploadFiles()">
+            <div class="upload-copy"><span class="upload-icon">↑</span><div><strong>Subir documentos</strong><small>PDF, Word, Excel, imágenes y más. Hasta 50 MB por archivo.</small></div></div>
+            <select aria-label="Carpeta destino" [ngModel]="uploadFolderId()" (ngModelChange)="uploadFolderId.set($event ? +$event : null)" name="uploadFolder">
+              <option [ngValue]="null">Carpeta raíz</option>
+              @for (folder of folders(); track folder.id) { <option [ngValue]="folder.id">{{ folder.name }}</option> }
+            </select>
+            <label class="file-picker"><input type="file" multiple (change)="onFilesSelected($event)" /><span>{{ selectedUploads().length ? selectedUploads().length + ' archivo(s) seleccionado(s)' : 'Elegir archivos' }}</span></label>
+            <label class="checkbox-line"><input type="checkbox" [ngModel]="uploadPublic()" (ngModelChange)="uploadPublic.set($event)" name="uploadPublic" /> Publicar</label>
+            <button class="button button-primary" type="submit" [disabled]="busy() || !selectedUploads().length">Subir <span>↑</span></button>
+          </form>
+          <div class="folder-strip">
+            <button type="button" [class.selected]="folderFilter() === null" (click)="folderFilter.set(null)">▤ Todos los archivos</button>
+            @for (folder of folders(); track folder.id) {
+              <button type="button" [class.selected]="folderFilter() === folder.id" (click)="folderFilter.set(folder.id)">▱ {{ folder.name }}</button>
+            }
+          </div>
+          <section class="file-list">
+            <div class="list-heading"><span>{{ filteredFiles().length }} archivo(s)</span><span>Visibilidad y acciones</span></div>
+            @for (file of filteredFiles(); track file.id) {
+              <article class="file-row">
+                <span class="file-icon">{{ file.mime_type.startsWith('image/') ? '▧' : '▤' }}</span>
+                <div class="file-description"><strong>{{ file.original_name }}</strong><small>{{ file.folder_name || 'Carpeta raíz' }} · {{ bytes(file.size_bytes) }}</small></div>
+                <span class="status-badge" [class.private]="!file.is_public">{{ file.is_public ? 'Público' : 'Privado' }}</span>
+                <div class="row-actions">
+                  <button type="button" title="Vista previa" (click)="previewFile(file)">◉</button>
+                  <button type="button" title="Renombrar" (click)="fileAction(file, 'rename')">✎</button>
+                  <button type="button" title="Mover a carpeta" (click)="fileAction(file, 'move')">▱</button>
+                  <button type="button" title="Cambiar visibilidad" (click)="fileAction(file, 'visibility')">{{ file.is_public ? '◌' : '◎' }}</button>
+                  <button type="button" class="danger-action" title="Enviar a papelera" (click)="fileAction(file, 'delete')">⌫</button>
+                </div>
+              </article>
+            } @empty {
+              <div class="empty-state">No hay archivos para mostrar. Sube tu primer documento.</div>
+            }
+          </section>
+        }
+
+        @case ('projects') {
+          <section class="toolbar"><p>Publica tus trabajos, ideas y experiencias.</p><button type="button" class="button button-primary" (click)="openCreate('project')">＋ Nuevo proyecto</button></section>
+          <div class="manage-grid">
+            @for (project of projects(); track project.id) {
+              <article class="manage-card"><div class="manage-top"><span class="status-badge" [class.private]="!project.is_public">{{ project.is_public ? 'Publicado' : 'Borrador' }}</span><span class="card-symbol">◇</span></div><h2>{{ project.title }}</h2><p>{{ project.summary || 'Sin resumen' }}</p><small>{{ project.technologies || 'Sin tecnologías especificadas' }}</small><div class="card-actions"><button type="button" (click)="openProject(project)">✎ Editar</button><button type="button" class="danger-action" (click)="deleteProject(project)">⌫ Enviar a papelera</button></div></article>
+            } @empty { <div class="empty-state">Aún no tienes proyectos. Crea el primero.</div> }
+          </div>
+        }
+
+        @case ('credentials') {
+          <section class="toolbar"><p>Administra tus diplomas y certificados.</p><button type="button" class="button button-primary" (click)="openCreate('credential')">＋ Añadir diploma</button></section>
+          <section class="file-list">
+            @for (item of credentials(); track item.id) {
+              <article class="file-row"><span class="file-icon">✦</span><div class="file-description"><strong>{{ item.title }}</strong><small>{{ item.institution || 'Institución no indicada' }} · {{ item.issue_date || 'Fecha no indicada' }}</small></div><span class="status-badge" [class.private]="!item.is_public">{{ item.is_public ? 'Publicado' : 'Borrador' }}</span><div class="row-actions"><button type="button" title="Editar" (click)="openCredential(item)">✎</button><button type="button" class="danger-action" title="Enviar a papelera" (click)="deleteCredential(item)">⌫</button></div></article>
+            } @empty { <div class="empty-state">Todavía no has agregado diplomas.</div> }
+          </section>
+        }
+
+        @case ('profile') {
+          <form class="panel profile-form" (ngSubmit)="saveProfile()">
+            <div class="panel-heading"><div><h2>Identidad profesional</h2><p>Estos datos se muestran en el sitio público.</p></div><span class="heading-mark">◎</span></div>
+            <div class="form-grid">
+              <label>Nombre o marca<input [ngModel]="profile().display_name" (ngModelChange)="setProfileField('display_name', $event)" name="display_name" /></label>
+              <label>Profesión o titular<input [ngModel]="profile().headline" (ngModelChange)="setProfileField('headline', $event)" name="headline" /></label>
+              <label>Ubicación<input [ngModel]="profile().location" (ngModelChange)="setProfileField('location', $event)" name="location" /></label>
+              <label>Correo público<input type="email" [ngModel]="profile().email_public" (ngModelChange)="setProfileField('email_public', $event)" name="email_public" /></label>
+              <label>Sitio web<input [ngModel]="profile().website" (ngModelChange)="setProfileField('website', $event)" name="website" /></label>
+              <label>GitHub<input [ngModel]="profile().github" (ngModelChange)="setProfileField('github', $event)" name="github" /></label>
+              <label>LinkedIn<input [ngModel]="profile().linkedin" (ngModelChange)="setProfileField('linkedin', $event)" name="linkedin" /></label>
+              <label class="span-two">Biografía<textarea rows="5" [ngModel]="profile().bio" (ngModelChange)="setProfileField('bio', $event)" name="bio"></textarea></label>
+              <label class="span-two">Habilidades (una por línea)<textarea rows="3" [ngModel]="profile().skills" (ngModelChange)="setProfileField('skills', $event)" name="skills"></textarea></label>
+              <label class="span-two">Experiencia y trayectoria<textarea rows="4" [ngModel]="profile().experience" (ngModelChange)="setProfileField('experience', $event)" name="experience"></textarea></label>
+              <label>Fotografía de perfil<input type="file" accept="image/*" (change)="onAssetSelected('avatar', $event)" /></label>
+              <label>Logo de marca<input type="file" accept="image/*" (change)="onAssetSelected('logo', $event)" /></label>
+              <label>Hoja de vida (PDF)<input type="file" accept=".pdf,application/pdf" (change)="onAssetSelected('cv', $event)" /></label>
+            </div>
+            <button type="submit" class="button button-primary" [disabled]="busy()">Guardar y publicar perfil <span>↑</span></button>
+          </form>
+        }
+
+        @case ('trash') {
+          <section class="page-intro"><p>Restaura elementos o elimínalos definitivamente.</p><span class="trash-count">{{ trash().length }} elemento(s)</span></section>
+          <section class="file-list">
+            @for (item of trash(); track item.type + '-' + item.id) {
+              <article class="file-row"><span class="file-icon">⌫</span><div class="file-description"><strong>{{ item.name }}</strong><small>{{ item.type }} · Eliminado {{ item.deleted_at | date:'mediumDate' }}</small></div><div class="row-actions text-actions"><button type="button" (click)="restoreItem(item)">↶ Restaurar</button><button type="button" class="danger-action" (click)="permanentlyDelete(item)">Eliminar definitivamente</button></div></article>
+            } @empty { <div class="empty-state">La papelera está vacía.</div> }
+          </section>
+        }
+      }
+    </main>
+  </div>
+}
+
+@if (dialog()) {
+  <div class="dialog-backdrop" (click)="closeDialog()">
+    <section class="dialog-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <button type="button" class="dialog-close" aria-label="Cerrar" (click)="closeDialog()">×</button>
+      <p class="eyebrow">SOY JEANCUY / ADMINISTRACIÓN</p>
+      @if (dialog() === 'folder') {
+        <h2>Nueva carpeta</h2>
+        <form (ngSubmit)="saveDialog()">
+          <label>Nombre<input [ngModel]="folderForm().name" (ngModelChange)="updateFolder('name', $event)" name="folderName" required /></label>
+          <label>Descripción<input [ngModel]="folderForm().description" (ngModelChange)="updateFolder('description', $event)" name="folderDescription" /></label>
+          <label>Carpeta superior<select [ngModel]="folderForm().parent_id" (ngModelChange)="updateFolder('parent_id', $event)" name="parentFolder"><option [ngValue]="null">Carpeta raíz</option>@for (folder of folders(); track folder.id) { <option [ngValue]="folder.id">{{ folder.name }}</option> }</select></label>
+          <button class="button button-primary full-width" type="submit" [disabled]="busy()">Crear carpeta</button>
+        </form>
+      } @else {
+        <h2>{{ dialog() === 'project' ? (editingId() ? 'Editar proyecto' : 'Nuevo proyecto') : (editingId() ? 'Editar diploma' : 'Añadir diploma') }}</h2>
+        <form (ngSubmit)="saveDialog()">
+          <label>Nombre<input [ngModel]="entity().title" (ngModelChange)="updateEntity('title', $event)" name="title" required /></label>
+          @if (dialog() === 'project') {
+            <label>Resumen<input [ngModel]="entity().summary" (ngModelChange)="updateEntity('summary', $event)" name="summary" /></label>
+            <label>Descripción<textarea rows="3" [ngModel]="entity().description" (ngModelChange)="updateEntity('description', $event)" name="description"></textarea></label>
+            <label>Tecnologías (separadas por coma)<input [ngModel]="entity().technologies" (ngModelChange)="updateEntity('technologies', $event)" name="technologies" /></label>
+            <label>Enlace del proyecto<input type="url" [ngModel]="entity().project_url" (ngModelChange)="updateEntity('project_url', $event)" name="project_url" /></label>
+          } @else {
+            <label>Institución<input [ngModel]="entity().institution" (ngModelChange)="updateEntity('institution', $event)" name="institution" /></label>
+            <label>Fecha de expedición<input type="date" [ngModel]="entity().issue_date" (ngModelChange)="updateEntity('issue_date', $event)" name="issue_date" /></label>
+            <label>Descripción<textarea rows="3" [ngModel]="entity().description" (ngModelChange)="updateEntity('description', $event)" name="credentialDescription"></textarea></label>
+            <label>Archivo asociado<select [ngModel]="entity().file_id" (ngModelChange)="updateEntity('file_id', $event)" name="file_id"><option [ngValue]="null">Sin archivo</option>@for (file of files(); track file.id) { <option [ngValue]="file.id">{{ file.original_name }}</option> }</select></label>
+          }
+          <label class="checkbox-line"><input type="checkbox" [ngModel]="entity().is_public" (ngModelChange)="updateEntity('is_public', $event)" name="is_public" /> Publicar en el sitio público</label>
+          <button class="button button-primary full-width" type="submit" [disabled]="busy()">Guardar cambios</button>
+        </form>
+      }
+    </section>
+  </div>
+}
+
+@if (previewName()) {
+  <div class="dialog-backdrop preview-backdrop" (click)="closePreview()">
+    <section class="preview-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header><div><p class="eyebrow">VISTA PREVIA</p><h2>{{ previewName() }}</h2></div><div class="preview-tools"><button type="button" class="button button-primary" (click)="downloadPreview()" [disabled]="!previewUrl()">Descargar ↓</button><button type="button" class="dialog-close" aria-label="Cerrar vista previa" (click)="closePreview()">×</button></div></header>
+      <div class="preview-body">
+        @if (previewError()) { <div class="empty-state" role="alert">{{ previewError() }}</div> }
+        @else if (previewSafeUrl()) { <iframe [src]="previewSafeUrl()" [title]="'Vista previa de ' + previewName()"></iframe> }
+        @else { <div class="empty-state">Cargando vista previa…</div> }
+      </div>
+    </section>
+  </div>
+}

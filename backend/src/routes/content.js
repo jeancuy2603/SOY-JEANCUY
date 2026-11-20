@@ -1,0 +1,13 @@
+import { Router } from 'express';
+import path from 'path';
+import { pool } from '../config/db.js';
+import { uploadDir } from '../config/env.js';
+const router=Router();
+router.get('/profile', async (_req,res)=>{const [r]=await pool.query('SELECT display_name,headline,bio,skills,experience,location,email_public,website,github,linkedin,logo_path,avatar_path,cv_path FROM profile WHERE id=1');res.json(r[0]||{});});
+router.get('/projects', async (_req,res)=>{const [r]=await pool.query('SELECT id,title,slug,summary,description,technologies,project_url,created_at FROM projects WHERE is_public=1 AND deleted_at IS NULL ORDER BY created_at DESC');res.json(r);});
+router.get('/credentials', async (_req,res)=>{const [r]=await pool.query('SELECT c.id,c.title,c.institution,c.issue_date,c.description,f.id AS file_id,f.original_name,f.mime_type FROM credentials c LEFT JOIN files f ON f.id=c.file_id WHERE c.is_public=1 AND c.deleted_at IS NULL ORDER BY c.issue_date DESC');res.json(r);});
+router.get('/folders', async (_req,res)=>{const [r]=await pool.query('SELECT id,parent_id,name,description FROM folders WHERE is_public=1 ORDER BY name');res.json(r);});
+router.get('/files', async (_req,res)=>{const [r]=await pool.query('SELECT id,folder_id,original_name,mime_type,size_bytes,created_at FROM files WHERE is_public=1 AND deleted_at IS NULL ORDER BY created_at DESC');res.json(r);});
+router.get('/files/:id/preview', async (req,res)=>{const [r]=await pool.query('SELECT f.stored_name,f.mime_type FROM files f WHERE f.id=? AND f.deleted_at IS NULL AND (f.is_public=1 OR EXISTS(SELECT 1 FROM credentials c WHERE c.file_id=f.id AND c.is_public=1 AND c.deleted_at IS NULL))',[req.params.id]);if(!r[0])return res.status(404).json({message:'Archivo no disponible públicamente.'});res.setHeader('Content-Type',r[0].mime_type);res.setHeader('Content-Disposition','inline');res.sendFile(path.join(uploadDir,r[0].stored_name));});
+router.get('/files/:id/download', async (req,res,next)=>{const [r]=await pool.query('SELECT f.stored_name,f.original_name FROM files f WHERE f.id=? AND f.deleted_at IS NULL AND (f.is_public=1 OR EXISTS(SELECT 1 FROM credentials c WHERE c.file_id=f.id AND c.is_public=1 AND c.deleted_at IS NULL))',[req.params.id]);if(!r[0])return res.status(404).json({message:'Archivo no disponible públicamente.'});res.download(path.join(uploadDir,r[0].stored_name),r[0].original_name,err=>{if(err&&!res.headersSent)next(err)});});
+export default router;

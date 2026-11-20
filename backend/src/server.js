@@ -1,0 +1,11 @@
+import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit';
+import authRoutes from './routes/auth.js'; import contentRoutes from './routes/content.js'; import adminRoutes from './routes/admin.js'; import contactRoutes from './routes/contact.js';
+import { uploadDir } from './config/env.js';
+import { connectContentClient } from './contentEvents.js';
+const app=express();
+const allowedOrigins=new Set([...(process.env.CLIENT_URL||'http://localhost:5173').split(','),...(process.env.ADMIN_URL||'http://localhost:4200').split(',')].map(origin=>origin.trim()).filter(Boolean));
+app.use(helmet({crossOriginResourcePolicy:{policy:'cross-origin'}}));app.use(cors({origin:(origin,callback)=>callback(null,!origin||allowedOrigins.has(origin))}));app.use(express.json({limit:'2mb'}));app.use(rateLimit({windowMs:15*60*1000,limit:300}));
+app.get('/api/health',(_req,res)=>res.json({status:'ok',app:'SOY JEANCUY API'}));app.use('/api/content/assets',express.static(uploadDir));app.use('/api/auth',authRoutes);app.use('/api/content',contentRoutes);app.use('/api/contact',contactRoutes);app.use('/api/admin',adminRoutes);
+app.get('/api/events',(req,res)=>{res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive','X-Accel-Buffering':'no'});res.flushHeaders();res.write('retry: 3000\n\n');const disconnect=connectContentClient(res);req.on('close',disconnect);});
+app.use((err,_req,res,_next)=>{console.error(err);res.status(err.code==='LIMIT_FILE_SIZE'?413:500).json({message:err.code==='LIMIT_FILE_SIZE'?'El archivo supera el tamaño permitido.':'Error interno del servidor.'});});
+const port=process.env.PORT||4000;app.listen(port,()=>console.log(`SOY JEANCUY API lista en http://localhost:${port}`));
